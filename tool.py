@@ -29,3 +29,8 @@ def data_loader(word_to_one_hot, batch_size):
     for batch in bucket:
         batch = torch.tensor(batch, dtype = torch.float64)
         yield batch
+
+def shuffle_and_dataset_split(word_to_one_hot):
+    bucket = random.sample(word_to_one_hot, len(word_to_one_hot))
+    tr = int(len(word_to_one_hot)*0.9)
+    return bucket[:tr], bucket[tr:]

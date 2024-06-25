@@ -48,11 +48,13 @@ word_to_one_hot = []
 for word, index in word_to_index.items():
     word_to_one_hot.append(tool.word_to_one_hot(word, word_to_index))
 
+train_data, valid_data = tool.shuffle_and_dataset_split(word_to_one_hot)
+
 batch_size = 5
 voc_size = len(word_to_index)
 one_hot_length = len(word_to_one_hot[0])
 embedding_length = 300
-nepochs = 50
+nepochs = 25
 
 class Model(nn.Module):
     def __init__(self, batch_size, voc_size, one_hot_length, embedding_length) -> None:
@@ -87,13 +89,35 @@ def train_model(model, criterion, optimizer, nepochs, batch_size, training_data)
             loss.backward()
             train_loss.append([float(loss)])
             optimizer.step()
-        print(loss)
         # print('train loss: {:.8f} {}'.format(train_loss, time.time() - t_start))
     print("training finished!")
     return model
 
+def eval_model(model, valid_set, batch_size):
+    model.eval()
+    valid_data_set = tool.data_loader(valid_set, batch_size)
+    for valid_data in valid_data_set:
+        x = valid_data.cuda()
+        y = valid_data.cuda()
+        y_pred = model(x)
+        y_pred = nn.functional.softmax(y_pred, dim = 1)
+        y_pred = torch.argmax(y_pred, dim = -1)
+        output_tensor = torch.zeros_like(y)
+        output_tensor.scatter_(1, y_pred.unsqueeze(1), 1.0)
+        print(y.shape[0])
+        for i in range(y.shape[0]):
+            if torch.equal(y[i], y_pred[i]):
+                print(True)
+            else:
+                print(False)
+            # print(True if y[i] == y_pred[i] else False)
+
+
+
+
 model = Model(batch_size=batch_size, voc_size=voc_size, one_hot_length=one_hot_length, embedding_length=embedding_length).cuda()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr = 1e-3)
-model = train_model(model=model, criterion=criterion, optimizer=optimizer, nepochs=nepochs, batch_size=batch_size, training_data=word_to_one_hot)
+model = train_model(model=model, criterion=criterion, optimizer=optimizer, nepochs=nepochs, batch_size=batch_size, training_data=train_data)
+eval_model(model=model, valid_set=valid_data, batch_size=batch_size)
 
